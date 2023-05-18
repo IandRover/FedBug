@@ -1,2 +1,0 @@
-,task,mode,balance,distribution,n_clients,act_prob,seed,epoch,a1,a2,a3,a4,l1,l2,l3,l4
-0,CIFAR100,fedavg,0,0,100,0.01,1,9,0.065,0.0683,0.0126,0.01328,4.16083046875,4.142664013671875,4.629638671875,4.6293073828125

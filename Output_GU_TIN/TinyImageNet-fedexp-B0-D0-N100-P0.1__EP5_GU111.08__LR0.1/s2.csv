@@ -1,2 +1,0 @@
-,task,mode,balance,distribution,n_clients,act_prob,n_epochs,seed,epoch,a1,a2,a3,a4,l1,l2,l3,l4
-0,TinyImageNet,fedexp,0,0,100,0.1,5,2,9,0.0314,0.02992,0.0131,0.01485,4.9753609375,4.97156232421875,5.25870625,5.25928125
