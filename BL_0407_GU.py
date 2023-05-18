@@ -1,11 +1,11 @@
-from utils_0407_general import *
-from utils_0407_methods import *  
+from utils_general import *
+from utils_methods import *  
 import argparse, datetime, copy, time
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', type = str, default = "fedavg", 
-                    choices=["feddyn", "scaffold", "fedavg", "fedprox", "fedavg1", "fedavg2", "fedavg3", "fedavg4", "fedavg5",
+                    choices=["feddyn", "scaffold", "fedavg", "fedprox",
                              "fedexp", "fedcm", "feddecorr",
                              "fedadam", "fedadagrad", "fedavgm"])
 parser.add_argument('--epoch', type = int, default = 5)
