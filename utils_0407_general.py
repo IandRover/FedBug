@@ -1,28 +1,23 @@
 from utils_libs import *
 from utils_dataset import *
 from utils_0301_models import *
- 
-# Global parameters
-os.environ["CUDA_DEVICE_ORDER"]    = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-max_norm = 10
-# --- Evaluate a NN model
 
-def get_acc_loss(data_x, data_y, model, dataset_name, w_decay = None):
+max_norm = 10
+
+def get_acc_loss(args, data_x, data_y, model, dataset_name, w_decay = None):
     acc_overall = 0; loss_overall = 0
     loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
     batch_size = min(6000, data_x.shape[0])
     n_tst = data_x.shape[0]
     tst_gen = data.DataLoader(Dataset(data_x, data_y, dataset_name=dataset_name), batch_size=batch_size, shuffle=False)
-    model.eval(); model = model.to(device)
+    model.eval(); model = model.to(args.device)
 
     with torch.no_grad():
         tst_gen_iter = tst_gen.__iter__()
         for i in range(int(np.ceil(n_tst/batch_size))):
             batch_x, batch_y = tst_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+            batch_x = batch_x.to(args.device)
+            batch_y = batch_y.to(args.device)
             y_pred = model(batch_x)
             
             loss = loss_fn(y_pred, batch_y.reshape(-1).long())
@@ -43,17 +38,19 @@ def get_acc_loss(data_x, data_y, model, dataset_name, w_decay = None):
 
 # --- Helper functions
 
-def set_client_from_params(mdl, params):
+def set_client_from_params(args, mdl, params):
     dict_param = copy.deepcopy(dict(mdl.named_parameters()))
     idx = 0
     for name, param in mdl.named_parameters():
         weights = param.data
         length = len(weights.reshape(-1))
         # print(name, length)
-        dict_param[name].data.copy_(torch.tensor(params[idx:idx+length].reshape(weights.shape)).to(device))
+        dict_param[name].data.copy_(torch.tensor(params[idx:idx+length].reshape(weights.shape)).to(args.device))
         idx += length
     
-    mdl.load_state_dict(dict_param)    
+    if args.model_name in ["mobilenetv2"]: mdl.load_state_dict(dict_param, strict=False)
+    else: mdl.load_state_dict(dict_param)    
+                
     return mdl
 
 
@@ -81,145 +78,154 @@ import time
 def sigmoid(x):
   return 1 / (1 + math.exp(-x))
 
-def __SetGrad(tensor, sign):
-    tensor.weight.requires_grad = sign
-    tensor.bias.requires_grad = sign
+def __SetGrad(args, tensor, sign):
+    if args.model_name in ["cnn"] or args.task in ["emnist"]:
+        tensor.weight.requires_grad = sign
+        tensor.bias.requires_grad = sign
+    elif args.model_name in ["resnet", "resnet34", "mobilenetv2"]:
+        for p1, p2 in tensor.named_parameters():
+            p2.requires_grad = sign
 
 def GlobalGradScheduler(args, new_model, avg_model, new_avg_model_param):
-    # Vanilla
     if int(args.GGU) == 0: return set_client_from_params(new_model, new_avg_model_param)
-
-    elif int(args.GGU) == 901: return set_client_from_params(new_model, new_avg_model_param)
-    
-    
-    # with args.seed * 10000
-    elif int(args.GGU) == 902: return set_client_from_params(new_model, new_avg_model_param)
-    
-    elif int(args.GGU) == 111:
-        factor = (args.GGU*100)%100/100
-        A = avg_model_param = get_mdl_params([avg_model], args.n_par)[0]
-        B = new_avg_model_param
-        dict_param = copy.deepcopy(dict(new_model.named_parameters()))
-        idx = 0
-        for name, param in new_model.named_parameters():
-            # print(name)
-            if   "conv1" in name: coefficient = factor ** 0
-            elif "conv2" in name: coefficient = factor ** 1
-            elif "fc1" in name: coefficient = factor ** 2
-            elif "fc2" in name: coefficient = factor ** 3
-            elif "fc3" in name: coefficient = factor ** 4
-            weights = param.data
-            length = len(weights.reshape(-1))
-            new_params = (B[idx:idx+length]-A[idx:idx+length]) * coefficient + A[idx:idx+length]
-            # print(args.GGU, factor, coefficient)
-            new_params = torch.tensor(new_params.reshape(weights.shape)).to(device)
-            dict_param[name].data.copy_(new_params)
-            idx += length    
-        new_model.load_state_dict(dict_param)    
-        return new_model
-
-    elif int(args.GGU) == 121:
-        factor = (args.GGU*100)%100/100 + 1
-        A = avg_model_param = get_mdl_params([avg_model], args.n_par)[0]
-        B = new_avg_model_param
-        dict_param = copy.deepcopy(dict(new_model.named_parameters()))
-        idx = 0
-        for name, param in new_model.named_parameters():
-            # print(name)
-            if   "conv1" in name: coefficient = factor ** 4
-            elif "conv2" in name: coefficient = factor ** 3
-            elif "fc1" in name: coefficient = factor ** 2
-            elif "fc2" in name: coefficient = factor ** 1
-            elif "fc3" in name: coefficient = factor ** 0
-            weights = param.data
-            length = len(weights.reshape(-1))
-            new_params = (B[idx:idx+length]-A[idx:idx+length]) * coefficient + A[idx:idx+length]
-            # print(args.GGU, factor, coefficient)
-            new_params = torch.tensor(new_params.reshape(weights.shape)).to(device)
-            dict_param[name].data.copy_(new_params)
-            idx += length
-        new_model.load_state_dict(dict_param)
-        return new_model
-
-    elif int(args.GGU) == 122:
-        B = new_avg_model_param
-        dict_param = copy.deepcopy(dict(new_model.named_parameters()))
-        idx = 0
-        for name, param in new_model.named_parameters():
-            weights = param.data
-            length = len(weights.reshape(-1))
-            new_params = B[idx:idx+length]
-            new_params = torch.tensor(new_params.reshape(weights.shape)).to(device)
-            dict_param[name].data.copy_(new_params)
-            idx += length
-        new_model.load_state_dict(dict_param)    
-        return new_model
-
-    elif int(args.GGU) == 131:
-        factor = (args.GGU*100)%100/100
-        A = avg_model_param = get_mdl_params([avg_model], args.n_par)[0]
-        B = new_avg_model_param
-        dict_param = copy.deepcopy(dict(new_model.named_parameters()))
-        idx = 0
-        for name, param in new_model.named_parameters():
-            if   "conv1" in name: coefficient = factor ** 4
-            elif "conv2" in name: coefficient = factor ** 3
-            elif "fc1" in name: coefficient = factor ** 2
-            elif "fc2" in name: coefficient = factor ** 1
-            elif "fc3" in name: coefficient = factor ** 0
-            weights = param.data
-            length = len(weights.reshape(-1))
-            new_params = (B[idx:idx+length]-A[idx:idx+length]) * coefficient + A[idx:idx+length]
-            # print(args.GGU, factor, coefficient)
-            new_params = torch.tensor(new_params.reshape(weights.shape)).to(device)
-            dict_param[name].data.copy_(new_params)
-            idx += length
-        new_model.load_state_dict(dict_param)    
-        return new_model
 
 def StopGradScheduler(args, model):
     with torch.no_grad():
-        for p1 , p2 in model.named_parameters():
-            p2.requires_grad = True
+        for p1 , p2 in model.named_parameters(): p2.requires_grad = True
         # Bottom up
+        
+        if args.model_name == "mobilenetv2":
+            if int(args.GU) == 111:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.features[2], False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.features[3], False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.features[4], False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.model.features[5], False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.model.features[6], False)
+                if  args.local_iter_count // factor <= 5: __SetGrad(args, model.model.features[7], False)
+                if  args.local_iter_count // factor <= 6: __SetGrad(args, model.model.features[8], False)
+                if  args.local_iter_count // factor <= 7: __SetGrad(args, model.model.features[9], False)
+                if  args.local_iter_count // factor <= 8: __SetGrad(args, model.model.features[10], False)
+                if  args.local_iter_count // factor <= 9: __SetGrad(args, model.model.features[11], False)
+                if  args.local_iter_count // factor <= 10: __SetGrad(args, model.model.features[12], False)
+                if  args.local_iter_count // factor <= 11: __SetGrad(args, model.model.features[13], False)
+                if  args.local_iter_count // factor <= 12: __SetGrad(args, model.model.features[14], False)
+                if  args.local_iter_count // factor <= 13: __SetGrad(args, model.model.features[15], False)
+                if  args.local_iter_count // factor <= 14: __SetGrad(args, model.model.features[16], False)
+                if  args.local_iter_count // factor <= 15: 
+                    __SetGrad(args, model.model.features[17], False)
+                    __SetGrad(args, model.model.features[18], False)
+                    __SetGrad(args, model.model.classifier, False)
+
+        if args.model_name == "resnet34":
+            if int(args.GU) == 104:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.layer2, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.layer3, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.layer4, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.fc, False)
+            elif int(args.GU) == 116:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.layer1[1], False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.layer1[2], False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.layer2[0], False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.model.layer2[1], False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.model.layer2[2], False)
+                if  args.local_iter_count // factor <= 5: __SetGrad(args, model.model.layer2[3], False)
+                if  args.local_iter_count // factor <= 6: __SetGrad(args, model.model.layer3[0], False)
+                if  args.local_iter_count // factor <= 7: __SetGrad(args, model.model.layer3[1], False)
+                if  args.local_iter_count // factor <= 8: __SetGrad(args, model.model.layer3[2], False)
+                if  args.local_iter_count // factor <= 9: __SetGrad(args, model.model.layer3[3], False)
+                if  args.local_iter_count // factor <= 10: __SetGrad(args, model.model.layer3[4], False)
+                if  args.local_iter_count // factor <= 11: __SetGrad(args, model.model.layer3[5], False)
+                if  args.local_iter_count // factor <= 12: __SetGrad(args, model.model.layer4[0], False)
+                if  args.local_iter_count // factor <= 13: __SetGrad(args, model.model.layer4[1], False)
+                if  args.local_iter_count // factor <= 14: __SetGrad(args, model.model.layer4[2], False)
+                if  args.local_iter_count // factor <= 15: __SetGrad(args, model.model.fc, False)
+
+            return 
+
+        if args.model_name == "resnet":
+            if int(args.GU) == 104:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.layer2, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.layer3, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.layer4, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.fc, False)
+            elif int(args.GU) == 108:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.layer1[1], False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.layer2[0], False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.layer2[1], False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.model.layer3[0], False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.model.layer3[1], False)
+                if  args.local_iter_count // factor <= 5: __SetGrad(args, model.model.layer4[0], False)
+                if  args.local_iter_count // factor <= 6: __SetGrad(args, model.model.layer4[1], False)
+                if  args.local_iter_count // factor <= 6: __SetGrad(args, model.model.fc, False)
+
+            return 
+
         if int(args.GU) == 111:
-            if args.task in ["emnist26"]:
+            if args.model_name == "resnet":
                 factor = (args.GU*100)%100
-                if  args.local_iter_count // factor <= 0: __SetGrad(model.fc2, False)
-                if  args.local_iter_count // factor <= 1: __SetGrad(model.fc3, False)
-            else:
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.layer1, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.layer2, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.model.layer3, False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.model.layer4, False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.model.fc, False)
+            
+            elif args.model_name == "cnn" and args.task in ["CIFAR10", "CIFAR100"]:
                 factor = (args.GU*100)%100
                 if  args.local_iter_count // factor <= 0: __SetGrad(model.conv2, False)
                 if  args.local_iter_count // factor <= 1: __SetGrad(model.fc1, False)
                 if  args.local_iter_count // factor <= 2: __SetGrad(model.fc2, False)
                 if  args.local_iter_count // factor <= 3: __SetGrad(model.fc3, False)
+            elif args.model_name == "cnn" and args.task in ["TinyImageNet"]:
+                factor = (args.GU*100)%100
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.conv2, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.conv3, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.fc1, False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.fc2, False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.fc3, False)
 
-                if    args.lradp == 1 and args.local_iter_count // factor <= 3: 
-                    args.optimizer.param_groups[0]["lr"] = args.learning_rate * 2
-                elif  args.lradp == 2: 
-                    X = factor * 4 / 50
-                    args.optimizer.param_groups[0]["lr"] = args.learning_rate / (1 - 0.5 * X)
-                elif  args.lradp == 3 and args.local_iter_count // factor > 3: 
-                    X = factor * 4 / 50
-                    args.optimizer.param_groups[0]["lr"] = args.learning_rate * (2 - X) / 2 / (1-X) 
-                else: args.optimizer.param_groups[0]["lr"] = args.learning_rate
-                # print(args.local_iter_count, args.local_iter_count // factor, args.optimizer.param_groups[0]["lr"])
-                # time.sleep(0.2)
+        if int(args.GU) == 110:
+            if args.model_name == "cnn" and args.task in ["TinyImageNet"]:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.conv2, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.conv3, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.fc1, False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.fc2, False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.fc3, False)
+            else:
+                assert 0 == 1
 
-        # Top down
-        elif int(args.GU) == 112:
-            factor = int(args.GU*100)%100
-            if  args.local_iter_count // factor <= 3: __SetGrad(model.conv1, False)
-            if  args.local_iter_count // factor <= 2: __SetGrad(model.conv2, False)
-            if  args.local_iter_count // factor <= 1: __SetGrad(model.fc1, False)
-            if  args.local_iter_count // factor <= 0: __SetGrad(model.fc2, False)
+        if int(args.GU) == 112:           
+            if args.model_name == "cnn" and args.task in ["TinyImageNet"]:
+                factor = (args.GU*1000)%1000
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.fc2, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.fc1, False)
+                if  args.local_iter_count // factor <= 2: __SetGrad(args, model.conv3, False)
+                if  args.local_iter_count // factor <= 3: __SetGrad(args, model.conv2, False)
+                if  args.local_iter_count // factor <= 4: __SetGrad(args, model.conv1, False)
 
-        elif int(args.GU) == 311:
-            __SetGrad(model.fc3, False)
-        
-        elif int(args.GU) == 312:
-            __SetGrad(model.fc3, False)
-            __SetGrad(model.fc2, False)
+        if int(args.GU) == 311:
+            if args.model_name == "cnn" and args.task in ["TinyImageNet"]:
+                __SetGrad(args, model.fc3, False)
+
+        if int(args.GU) == 312:
+            if args.model_name == "cnn" and args.task in ["TinyImageNet"]:
+                __SetGrad(args, model.fc3, False)
+                __SetGrad(args, model.fc2, False)
+
+        if int(args.GU) == 113:
+            if args.model_name == "resnet":
+                factor = (args.GU*100)%100
+                # print("Hi")
+                if  args.local_iter_count // factor <= 0: __SetGrad(args, model.model.layer2, False)
+                if  args.local_iter_count // factor <= 1: __SetGrad(args, model.model.layer3, False)
+                if  args.local_iter_count // factor <= 2: 
+                    __SetGrad(args, model.model.layer4, False)
+                    __SetGrad(args, model.model.fc, False)
 
 def GradModulator(args, model):
     with torch.no_grad():
@@ -231,25 +237,27 @@ def GradModulator(args, model):
 def train_model(args, model, trn_x, trn_y, learning_rate, batch_size, epoch, print_per, weight_decay, dataset_name):
 
     n_trn = trn_x.shape[0]
-    trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True) 
+    trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True)
     loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    args.optimizer, args.learning_rate = optimizer, learning_rate
-    model.train(); model = model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=args.momentum)
+    model.train(); model = model.to(args.device)
     args.local_iter_count = 0
+
+    # print(int(np.ceil(n_trn/batch_size)), epoch)
 
     for e in range(epoch):
         trn_gen_iter = trn_gen.__iter__()
         for i in range(int(np.ceil(n_trn/batch_size))):
+            # print(int(np.ceil(n_trn/batch_size)))
             batch_x, batch_y = trn_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+            batch_x = batch_x.to(args.device)
+            batch_y = batch_y.to(args.device)
             StopGradScheduler(args, model)
             y_pred = model(batch_x)
             loss = loss_fn(y_pred, batch_y.reshape(-1).long()) / list(batch_y.size())[0]
             optimizer.zero_grad()
             loss.backward()
-            GradModulator(args, model)
+#             GradModulator(args, model)
             torch.nn.utils.clip_grad_norm_(parameters=model.parameters(), max_norm=max_norm)
             optimizer.step()
             args.local_iter_count += 1
@@ -287,29 +295,29 @@ class FedDecorrLoss(nn.Module):
         loss = loss / N
 
         return loss
-    
+
 def train_feddecorr_model(args, model, trn_x, trn_y, learning_rate, batch_size, epoch, print_per, weight_decay, dataset_name):
 
     n_trn = trn_x.shape[0]
     trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True) 
     loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
     loss_fn2 = FedDecorrLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    args.optimizer, args.learning_rate = optimizer, learning_rate
-    model.train(); model = model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=args.momentum)
+    model.train(); model = model.to(args.device)
     args.local_iter_count = 0
 
     for e in range(epoch):
         trn_gen_iter = trn_gen.__iter__()
         for i in range(int(np.ceil(n_trn/batch_size))):
             batch_x, batch_y = trn_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+            batch_x = batch_x.to(args.device)
+            batch_y = batch_y.to(args.device)
             StopGradScheduler(args, model)
             y_pred, z = model.forward_feat(batch_x)
             loss = loss_fn(y_pred, batch_y.reshape(-1).long()) / list(batch_y.size())[0]
 
-            loss += 0.05 * loss_fn2(z)
+            loss2 = loss_fn2(z)
+            loss += 0.001 * loss2
 
             optimizer.zero_grad()
             loss.backward()
@@ -318,49 +326,10 @@ def train_feddecorr_model(args, model, trn_x, trn_y, learning_rate, batch_size, 
             torch.nn.utils.clip_grad_norm_(parameters=model.parameters(), max_norm=max_norm)
             optimizer.step()
             args.local_iter_count += 1
-           
+        
         if (e+1) % print_per == 0: model.train()
-    
-    for params in model.parameters(): params.requires_grad = False
-    model.eval()            
-    return model
 
-def train_fedcm_model(args, model, trn_x, trn_y, learning_rate, batch_size, epoch, print_per, weight_decay, dataset_name):
-
-    n_trn = trn_x.shape[0]
-    trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True) 
-    loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    model.train(); model = model.to(device)
-    args.local_iter_count = 0
-
-    for e in range(epoch):
-        trn_gen_iter = trn_gen.__iter__()
-        for i in range(int(np.ceil(n_trn/batch_size))):
-            batch_x, batch_y = trn_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
-            StopGradScheduler(args, model)
-            y_pred = model(batch_x)
-            loss = loss_fn(y_pred, batch_y.reshape(-1).long()) / list(batch_y.size())[0]
-            optimizer.zero_grad()
-            loss.backward()
-            GradModulator(args, model)
-
-            torch.nn.utils.clip_grad_norm_(parameters=model.parameters(), max_norm=max_norm)
-
-            idx = 0
-            for name, param in model.named_parameters():
-                length = len(param.reshape(-1))
-                args.alpha * torch.tensor(args.delta[idx:idx+length].reshape(param.shape))
-                param.grad.data.multiply_(args.alpha)
-                param.grad.data.add_((1-args.alpha) * torch.tensor(args.delta[idx:idx+length].reshape(param.shape)).to(device))
-                idx += length
-
-            optimizer.step()
-            args.local_iter_count += 1
-           
-        if (e+1) % print_per == 0: model.train()
+        # break
     
     for params in model.parameters(): params.requires_grad = False
     model.eval()            
@@ -371,9 +340,8 @@ def train_feddyn_mdl(args, model, model_func, alpha_coef, avg_mdl_param, local_g
     trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True)
     loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=alpha_coef+weight_decay)
-    args.optimizer, args.learning_rate = optimizer, learning_rate
-    model.train(); model = model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=alpha_coef+weight_decay, momentum=args.momentum)
+    model.train(); model = model.to(args.device)
     
     n_par = get_mdl_params([model_func()]).shape[1]
 
@@ -384,8 +352,8 @@ def train_feddyn_mdl(args, model, model_func, alpha_coef, avg_mdl_param, local_g
         trn_gen_iter = trn_gen.__iter__()
         for i in range(int(np.ceil(n_trn/batch_size))):
             batch_x, batch_y = trn_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+            batch_x = batch_x.to(args.device)
+            batch_y = batch_y.to(args.device)
             StopGradScheduler(args, model)
             y_pred = model(batch_x)
             
@@ -426,9 +394,8 @@ def train_fedprox_mdl(args, model, avg_model_param_, mu, trn_x, trn_y, learning_
     trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True)
     loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    args.optimizer, args.learning_rate = optimizer, learning_rate
-    model.train(); model = model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=args.momentum)
+    model.train(); model = model.to(args.device)
     
     n_par = len(avg_model_param_)
     args.local_iter_count = 0
@@ -439,8 +406,8 @@ def train_fedprox_mdl(args, model, avg_model_param_, mu, trn_x, trn_y, learning_
         trn_gen_iter = trn_gen.__iter__()
         for i in range(int(np.ceil(n_trn/batch_size))):
             batch_x, batch_y = trn_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+            batch_x = batch_x.to(args.device)
+            batch_y = batch_y.to(args.device)
             StopGradScheduler(args, model)
             y_pred = model(batch_x)
             
@@ -491,8 +458,8 @@ def train_scaffold_mdl(args, model, model_func, state_params_diff, trn_x, trn_y,
     trn_gen = data.DataLoader(Dataset(trn_x, trn_y, train=True, dataset_name=dataset_name), batch_size=batch_size, shuffle=True)
     loss_fn = torch.nn.CrossEntropyLoss(reduction='sum')
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    model.train(); model = model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=args.momentum)
+    model.train(); model = model.to(args.device)
     
     n_par = get_mdl_params([model_func()]).shape[1]
     n_iter_per_epoch = int(np.ceil(n_trn/batch_size))
@@ -513,8 +480,8 @@ def train_scaffold_mdl(args, model, model_func, state_params_diff, trn_x, trn_y,
                 is_done = True
                 break
             batch_x, batch_y = trn_gen_iter.__next__()
-            batch_x = batch_x.to(device)
-            batch_y = batch_y.to(device)
+            batch_x = batch_x.to(args.device)
+            batch_y = batch_y.to(args.device)
             StopGradScheduler(args, model)
             
             y_pred = model(batch_x)
@@ -528,6 +495,7 @@ def train_scaffold_mdl(args, model, model_func, state_params_diff, trn_x, trn_y,
                 if not isinstance(local_par_list, torch.Tensor): local_par_list = param.reshape(-1)
                 else: local_par_list = torch.cat((local_par_list, param.reshape(-1)), 0)
         
+            print(state_params_diff.sum())
             loss_algo = torch.sum(local_par_list * state_params_diff)
             loss = loss_f_i + loss_algo
 
