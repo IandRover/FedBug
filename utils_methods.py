@@ -9,14 +9,8 @@ import datetime, time
 
 def df_append(df, data): df.loc[len(df)] = data
 
-def current_lr(args, learning_rate, lr_decay_per_round, i):
-    if args.lr_update_mode == "exp": return learning_rate * (lr_decay_per_round ** i)
-    if args.lr_update_mode == "lin": 
-        lr = learning_rate * (1 - i/args.com_amount)
-        return lr
-
 ### Methods
-def train(args, data_obj, learning_rate, batch_size, epoch, print_per, weight_decay, model_func, init_model, lr_decay_per_round, rand_seed=0):
+def train(args, data_obj, model_func, init_model, rand_seed=0):
     
     memory = pd.DataFrame(columns=['task', 'mode', "balance", "distribution", "n_clients", "act_prob", "n_epochs",
                                    "seed", "epoch", "a1", "a2", "a3", "a4", "l1", "l2", "l3", "l4"])
@@ -86,12 +80,10 @@ def train(args, data_obj, learning_rate, batch_size, epoch, print_per, weight_de
                 
                 for params in clnt_models[clnt].parameters(): params.requires_grad = True
                 if args.mode in ["fedavg", "fedavg1", "fedavg2", "fedavg3", "fedavg4", "fedavg5"]: clnt_models[clnt] = train_model(args, clnt_models[clnt], trn_x, trn_y, 
-                                                                        current_lr(args, learning_rate, lr_decay_per_round, i), 
-                                                                        batch_size, epoch, print_per, weight_decay, data_obj.dataset)
+                                                                        data_obj.dataset)
                 if args.mode == "feddecorr": clnt_models[clnt] = train_feddecorr_model(args, clnt_models[clnt], trn_x, trn_y, 
-                                                                        current_lr(args, learning_rate, lr_decay_per_round, i), 
-                                                                        batch_size, epoch, print_per, weight_decay, data_obj.dataset)
-                if args.mode == "fedprox": clnt_models[clnt] = train_fedprox_mdl(args, clnt_models[clnt], avg_model_param_tensor, args.mu, trn_x, trn_y, learning_rate * (lr_decay_per_round ** i), batch_size, epoch, print_per, weight_decay, data_obj.dataset)
+                                                                        data_obj.dataset)
+                if args.mode == "fedprox": clnt_models[clnt] = train_fedprox_mdl(args, clnt_models[clnt], avg_model_param_tensor, args.mu, trn_x, trn_y, data_obj.dataset)
                 clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
 
             avg_mdl_param = np.mean(clnt_params_list[selected_clnts], axis = 0)
@@ -106,8 +98,7 @@ def train(args, data_obj, learning_rate, batch_size, epoch, print_per, weight_de
                 for params in clnt_models[clnt].parameters(): params.requires_grad = True
 
                 clnt_models[clnt] = train_model(args, clnt_models[clnt], trn_x, trn_y, 
-                                                current_lr(args, learning_rate, lr_decay_per_round, i), 
-                                                batch_size, epoch, print_per, weight_decay, data_obj.dataset)
+                                                data_obj.dataset)
                 clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
 
             avg_model_param = get_mdl_params([avg_model], n_par)
@@ -124,8 +115,7 @@ def train(args, data_obj, learning_rate, batch_size, epoch, print_per, weight_de
                 clnt_models[clnt].load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
                 for params in clnt_models[clnt].parameters(): params.requires_grad = True
                 clnt_models[clnt] = train_model(args, clnt_models[clnt], trn_x, trn_y, 
-                                                current_lr(args, learning_rate, lr_decay_per_round, i), 
-                                                batch_size, epoch, print_per, weight_decay, data_obj.dataset)
+                                                data_obj.dataset)
                 clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
 
             avg_model_param = get_mdl_params([avg_model], n_par)[0]
@@ -152,7 +142,7 @@ def train(args, data_obj, learning_rate, batch_size, epoch, print_per, weight_de
                 # Scale down c
                 state_params_diff_curr = torch.tensor(state_param_list[-1] - state_param_list[clnt], dtype=torch.float32, device=args.device)
                 clnt_models[clnt] = train_scaffold_mdl(args, clnt_models[clnt], model_func, state_params_diff_curr, trn_x, trn_y, 
-                                                       current_lr(args, learning_rate, lr_decay_per_round, i), batch_size, args.n_minibatch, print_per, weight_decay, data_obj.dataset)
+                                                       args.n_minibatch, data_obj.dataset)
                 curr_model_param = get_mdl_params([clnt_models[clnt]], n_par)[0]
                 new_c = state_param_list[clnt] - state_param_list[-1] + 1/args.n_minibatch/learning_rate * (prev_params - curr_model_param)
                 # Scale up delta c
@@ -180,9 +170,8 @@ def train(args, data_obj, learning_rate, batch_size, epoch, print_per, weight_de
                 alpha_coef_adpt = args.alpha_coef / weight_list[clnt] # adaptive alpha coef
                 local_param_list_curr = torch.tensor(local_param_list[clnt], dtype=torch.float32, device=args.device)
                 clnt_models[clnt] = train_feddyn_mdl(args, model, model_func, alpha_coef_adpt, cld_mdl_param_tensor, 
-                                                     local_param_list_curr, trn_x, trn_y, 
-                                                     current_lr(args, learning_rate, lr_decay_per_round, i), batch_size, epoch, 
-                                                     print_per, weight_decay, data_obj.dataset)
+                                                     local_param_list_curr, trn_x, trn_y,
+                                                     print_per, data_obj.dataset)
                 curr_model_par = get_mdl_params([clnt_models[clnt]], n_par)[0]
 
                 # No need to scale up hist terms. They are -\nabla/alpha and alpha is already scaled.
