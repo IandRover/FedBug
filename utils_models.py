@@ -28,26 +28,27 @@ class client_model(nn.Module):
             self.fc2 = nn.Linear(256, 128) 
             self.fc3 = nn.Linear(128, self.n_cls)
 
-        if self.model_name == "resnet": self.model = resnet18(self.n_cls)
+        if self.model_name == "resnet18":          
+            self.model = resnet18(self.n_cls)
 
-        if self.model_name == "resnet34": self.model = resnet34(self.n_cls)
+        if self.model_name == "resnet34":          
+            self.model = resnet34(self.n_cls)
 
-        elif self.model_name == "mobilenetv2": self.model = mobilenetv2(self.n_cls)
-              
     def forward(self, x):
-        
-        if self.model_name in ["resnet", "mobilenetv2", "resnet34"]:
+        if self.model_name in ["resnet18", "resnet34"]:
             x = self.model(x)
+            return x
 
-        elif self.model_name in ["cnn"] and self.name in ['cifar10','cifar100']:
+        if self.model_name in ["cnn"] and self.name in ['cifar10','cifar100']:
             x = self.pool(F.relu(self.conv1(x)))
             x = self.pool(F.relu(self.conv2(x)))
             x = x.view(-1, 64*5*5)
             x = F.relu(self.fc1(x))
             x = F.relu(self.fc2(x))
             x = self.fc3(x)
-
-        elif self.model_name in ["cnn"] and self.name in ['tinyimagenet']:
+            return x
+        
+        if self.model_name in ["cnn"] and self.name in ['tinyimagenet']:
             x = self.pool(F.relu(self.conv1(x)))
             x = self.pool(F.relu(self.conv2(x)))
             x = self.pool(F.relu(self.conv3(x)))
@@ -55,8 +56,7 @@ class client_model(nn.Module):
             x = F.relu(self.fc1(x))
             x = F.relu(self.fc2(x))
             x = self.fc3(x)
-            
-        return x
+            return x
 
     def forward_feat(self, x):
         
@@ -72,28 +72,15 @@ class client_model(nn.Module):
         return self.fc3(x), x
 
 
-# +
-def mobilenetv2(n_cls):
-    def replace_batchnorm(model):
-        for name, module in reversed(model._modules.items()):
-            if len(list(module.children())) > 0:
-                model._modules[name] = replace_batchnorm(module)
-            if isinstance(module, torch.nn.BatchNorm2d):
-                model._modules[name] = torch.nn.GroupNorm(2, module.num_features)
-        return model 
-    model = models.mobilenet_v2()
-    model.classifier[1] = nn.Linear(1280, n_cls)
-    model = replace_batchnorm(model)
-    return model
+def replace_batchnorm(model):
+    for name, module in reversed(model._modules.items()):
+        if len(list(module.children())) > 0:
+            model._modules[name] = replace_batchnorm(module)
+        if isinstance(module, torch.nn.BatchNorm2d):
+            model._modules[name] = torch.nn.GroupNorm(2, module.num_features)
+    return model 
 
 def resnet34(n_cls):
-    def replace_batchnorm(model):
-        for name, module in reversed(model._modules.items()):
-            if len(list(module.children())) > 0:
-                model._modules[name] = replace_batchnorm(module)
-            if isinstance(module, torch.nn.BatchNorm2d):
-                model._modules[name] = torch.nn.GroupNorm(2, module.num_features)
-        return model 
     model = models.resnet34()
     model.fc = nn.Linear(512, n_cls)
     model = replace_batchnorm(model)
@@ -102,33 +89,4 @@ def resnet34(n_cls):
 def resnet18(n_cls):
     resnet18 = models.resnet18()
     resnet18.fc = nn.Linear(512, n_cls)
-
-    # Change BN to GN 
-    resnet18.bn1 = nn.GroupNorm(num_groups = 2, num_channels = 64)
-
-    resnet18.layer1[0].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 64)
-    resnet18.layer1[0].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 64)
-    resnet18.layer1[1].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 64)
-    resnet18.layer1[1].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 64)
-
-    resnet18.layer2[0].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 128)
-    resnet18.layer2[0].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 128)
-    resnet18.layer2[0].downsample[1] = nn.GroupNorm(num_groups = 2, num_channels = 128)
-    resnet18.layer2[1].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 128)
-    resnet18.layer2[1].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 128)
-
-    resnet18.layer3[0].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 256)
-    resnet18.layer3[0].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 256)
-    resnet18.layer3[0].downsample[1] = nn.GroupNorm(num_groups = 2, num_channels = 256)
-    resnet18.layer3[1].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 256)
-    resnet18.layer3[1].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 256)
-
-    resnet18.layer4[0].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 512)
-    resnet18.layer4[0].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 512)
-    resnet18.layer4[0].downsample[1] = nn.GroupNorm(num_groups = 2, num_channels = 512)
-    resnet18.layer4[1].bn1 = nn.GroupNorm(num_groups = 2, num_channels = 512)
-    resnet18.layer4[1].bn2 = nn.GroupNorm(num_groups = 2, num_channels = 512)
-
-    assert len(dict(resnet18.named_parameters()).keys()) == len(resnet18.state_dict().keys()), 'More BN layers are there...'
-
     return resnet18
