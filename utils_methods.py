@@ -65,6 +65,7 @@ def train(args, data_obj, model_func, init_model):
             #     avg_model_param_tensor = torch.tensor(avg_model_param, dtype=torch.float32, device=args.device)
 
             for clnt in selected_clnts:
+<<<<<<< HEAD
                 # trn_x, trn_y = clnt_x[clnt], clnt_y[clnt]
                 # clnt_models[clnt] = model_func().to(args.device)
                 # clnt_models[clnt].load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
@@ -87,6 +88,17 @@ def train(args, data_obj, model_func, init_model):
                 clnt_params_list[clnt] = get_mdl_params([clnt_model], n_par)[0]
                 del clnt_model
 
+=======
+                trn_x, trn_y = clnt_x[clnt], clnt_y[clnt]
+                clnt_models[clnt] = model_func().to(args.device)
+                clnt_models[clnt].load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
+                
+                for params in clnt_models[clnt].parameters(): params.requires_grad = True
+                if args.mode in ["fedavg"]: clnt_models[clnt] = train_model(args, clnt_models[clnt], trn_x, trn_y)
+                if args.mode == "feddecorr": clnt_models[clnt] = train_feddecorr_model(args, clnt_models[clnt], trn_x, trn_y)
+                if args.mode == "fedprox": clnt_models[clnt] = train_fedprox_mdl(args, clnt_models[clnt], avg_model_param_tensor, args.mu, trn_x, trn_y)
+                clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
+>>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
 
             avg_mdl_param = np.mean(clnt_params_list[selected_clnts], axis = 0)
             avg_model = set_client_from_params(args, model_func(), avg_mdl_param) 

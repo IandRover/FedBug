@@ -35,7 +35,11 @@ class client_model(nn.Module):
             self.model = resnet34(self.n_cls)
 
     def forward(self, x):
+<<<<<<< HEAD
         if self.model_name in ["resnet18", "resnet34", "mobilenetv2"]:
+=======
+        if self.model_name in ["resnet18", "resnet34"]:
+>>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
             x = self.model(x)
             return x
 
@@ -87,6 +91,7 @@ def resnet34(n_cls):
     return model
 
 def resnet18(n_cls):
+<<<<<<< HEAD
     model = models.resnet18()
     model.fc = nn.Linear(512, n_cls)
     model = replace_batchnorm(model)
@@ -97,3 +102,8 @@ def mobilenetv2(n_cls):
     model.fc = nn.Linear(512, n_cls)
     model = replace_batchnorm(model)
     return model
+=======
+    resnet18 = models.resnet18()
+    resnet18.fc = nn.Linear(512, n_cls)
+    return resnet18
+>>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e

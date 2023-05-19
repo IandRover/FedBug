@@ -13,11 +13,16 @@ def train_model(args, model, trn_x, trn_y):
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
     model.train(); model = model.to(args.device)
     args.local_iter_count = 0
+<<<<<<< HEAD
     # print(n_trn/args.bs)
     args.total_local_iter = int(np.ceil(n_trn/args.bs)) * args.epoch
     # print(args.total_local_iter)
     for e in range(args.epoch):
         args.current_epoch = e
+=======
+
+    for e in range(args.epoch):
+>>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
         trn_gen_iter = trn_gen.__iter__()
         for i in range(int(np.ceil(n_trn/args.bs))):
             # print(int(np.ceil(n_trn/args.bs)))
@@ -74,7 +79,11 @@ def train_feddecorr_model(args, model, trn_x, trn_y):
             y_pred, z = model.forward_feat(batch_x)
             loss = loss_fn(y_pred, batch_y.reshape(-1).long()) / list(batch_y.size())[0]
 
+<<<<<<< HEAD
             loss += 0.01 * loss_fn2(z)
+=======
+            loss += 0.001 * loss_fn2(z)
+>>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
             optimizer.zero_grad()
             loss.backward()
 
