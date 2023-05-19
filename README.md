@@ -1,7 +1,8 @@
 # Introduction
 
 ## What is **FedBug**?
-**FedBug**, standing for **Fed**erated Learning with **B**ottom-**U**p **G**radual Unfreezing, a novel FL framework designed to effectively mitigate client drift.
+**FedBug**, standing for ***Fed***erated Learning with ***B***ottom-***U***p ***G***radual Unfreezing, a novel FL framework designed to effectively mitigate client drift.
+
 FedBug adaptively leverages the client model parameters, distributed by the server at each global round, as the reference points for cross-client alignment. 
 
 ## What does FedBug work?
