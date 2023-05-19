@@ -47,12 +47,12 @@ http://cs231n.stanford.edu/tiny-imagenet-200.zip
 
 ## Run Experiment
 
-To run the baseline, consider this:
+**Baseline**:
+    
+     python wk_run.py --mode 'fedavg' --task 'TinyImageNet'
 
-`python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --dist 0 --act_prob 0.1 --epoch 3 --seed 1`
+**FedBug (40%)**:
 
-To use `Module-wise FedBug (40%)` with Resnet-18 model, with non-iid label distribution ($\alpha=0.3$):
-
-`python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --dist 0.3 --act_prob 0.1 --epoch 3 --seed 1 --GUP1 0.4 --GUP2 "M"`
+     `python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --GUP1 0.4 --GUP2 "M"`
 
 `GUP1` controls the GU stage percentage; `GUP2` controls the use of ResNet Module `M` or residual block `B` as basic unit.
