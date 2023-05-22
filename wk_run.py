@@ -14,7 +14,7 @@ parser.add_argument('--task', type = str, default = "CIFAR100", choices=["CIFAR1
 parser.add_argument('--balance', type = float, default = 0., help="0: balanced | 0-1: sampling rate")
 parser.add_argument('--dist', type = float, default = 0.0, help="0: iid | 0-1: non-iid with unbalanced_sgm")
 
-parser.add_argument('--n_clients', type = int, default = 100)
+parser.add_argument('--n_clients', type = int, default = 50)
 parser.add_argument('--act_prob', type = float, default = .1)
 
 parser.add_argument('--lr', type = float, default = 0.1)
@@ -51,7 +51,7 @@ if args.GU != 0:
     if int(args.GU) == args.GU: args.GU = int(args.GU)
     args.extension += "_GU" + str(args.GU)
 # ==============================================
-dir_folder = args.task + args.model_name
+dir_folder = args.task + "-" + args.model_name
 if not os.path.exists(dir_folder): os.mkdir(dir_folder)
 args.savepath = dir_folder + '/{}-B{}-D{}-N{}-P{}_{}'.format(args.mode, args.balance, args.dist, args.n_clients, args.act_prob, args.extension)
 if not os.path.exists(args.savepath): os.mkdir(args.savepath)
