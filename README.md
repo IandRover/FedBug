@@ -50,9 +50,11 @@ http://cs231n.stanford.edu/tiny-imagenet-200.zip
     
      python wk_run.py --mode 'fedavg' --task 'TinyImageNet'
 
-**FedBug (40%)**:
+**FedBug (10%)**:
 
-<!--      python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --GUP1 0.4 --GUP2 "M" -->
+     python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --GU 100.001
+     
+**FedBug (50%)**:
+
      python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --GU 100.005
      
-//`GUP1` sets the GU stage percentage; `GUP2` sets the use of ResNet Module `M` or residual block `B` as basic unit.
