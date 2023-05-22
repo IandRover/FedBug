@@ -38,12 +38,8 @@ def set_client_from_params(args, mdl, params):
         length = len(weights.reshape(-1))
         dict_param[name].data.copy_(torch.tensor(params[idx:idx+length].reshape(weights.shape)).to(args.device))
         idx += length
-<<<<<<< HEAD
     mdl.load_state_dict(dict_param)
     del dict_param
-=======
-    mdl.load_state_dict(dict_param)     
->>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
     return mdl
 
 
