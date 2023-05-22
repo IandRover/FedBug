@@ -12,8 +12,8 @@ def df_append(df, data): df.loc[len(df)] = data
 ### Methods
 def train(args, data_obj, model_func, init_model):
     
-    memory = pd.DataFrame(columns=['task', 'mode', "balance", "distribution", "n_clients", "act_prob", "seed", "GUP1", "GUP2",
-                                   "n_epochs", "epoch", "time", "a1", "a2", "a3", "a4", "l1", "l2", "l3", "l4"])
+    memory = pd.DataFrame(columns=['task', 'mode', "balance", "distribution", "n_clients", "act_prob", "n_epochs",
+                                   "seed", "epoch", "a1", "a2", "a3", "a4", "l1", "l2", "l3", "l4"])
 
     n_clnt=data_obj.n_client
     clnt_x = data_obj.clnt_x; clnt_y=data_obj.clnt_y
@@ -60,35 +60,11 @@ def train(args, data_obj, model_func, init_model):
             if len(selected_clnts) != 0: break
 
         if args.mode in ["fedavg", "fedprox", "feddecorr", "fedavg1", "fedavg2", "fedavg3", "fedavg4", "fedavg5"]:
-            # if args.mode == "fedprox":
-            #     avg_model_param = get_mdl_params([avg_model], n_par)[0]
-            #     avg_model_param_tensor = torch.tensor(avg_model_param, dtype=torch.float32, device=args.device)
+            if args.mode == "fedprox":
+                avg_model_param = get_mdl_params([avg_model], n_par)[0]
+                avg_model_param_tensor = torch.tensor(avg_model_param, dtype=torch.float32, device=args.device)
 
             for clnt in selected_clnts:
-<<<<<<< HEAD
-                # trn_x, trn_y = clnt_x[clnt], clnt_y[clnt]
-                # clnt_models[clnt] = model_func().to(args.device)
-                # clnt_models[clnt].load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
-                
-                # for params in clnt_models[clnt].parameters(): params.requires_grad = True
-                # if args.mode in ["fedavg"]: clnt_models[clnt] = train_model(args, clnt_models[clnt], trn_x, trn_y)
-                # # if args.mode == "feddecorr": clnt_models[clnt] = train_feddecorr_model(args, clnt_models[clnt], trn_x, trn_y)
-                # # if args.mode == "fedprox": clnt_models[clnt] = train_fedprox_mdl(args, clnt_models[clnt], avg_model_param_tensor, args.mu, trn_x, trn_y)
-                # clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
-                # clnt_models[clnt] 
-
-                trn_x, trn_y = clnt_x[clnt], clnt_y[clnt]
-                clnt_model = model_func().to(args.device)
-                clnt_model.load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
-                
-                for params in clnt_model.parameters(): params.requires_grad = True
-                if args.mode in ["fedavg"]: clnt_model = train_model(args, clnt_model, trn_x, trn_y)
-                # if args.mode == "feddecorr": clnt_models[clnt] = train_feddecorr_model(args, clnt_models[clnt], trn_x, trn_y)
-                # if args.mode == "fedprox": clnt_models[clnt] = train_fedprox_mdl(args, clnt_models[clnt], avg_model_param_tensor, args.mu, trn_x, trn_y)
-                clnt_params_list[clnt] = get_mdl_params([clnt_model], n_par)[0]
-                del clnt_model
-
-=======
                 trn_x, trn_y = clnt_x[clnt], clnt_y[clnt]
                 clnt_models[clnt] = model_func().to(args.device)
                 clnt_models[clnt].load_state_dict(copy.deepcopy(dict(avg_model.named_parameters())))
@@ -98,7 +74,6 @@ def train(args, data_obj, model_func, init_model):
                 if args.mode == "feddecorr": clnt_models[clnt] = train_feddecorr_model(args, clnt_models[clnt], trn_x, trn_y)
                 if args.mode == "fedprox": clnt_models[clnt] = train_fedprox_mdl(args, clnt_models[clnt], avg_model_param_tensor, args.mu, trn_x, trn_y)
                 clnt_params_list[clnt] = get_mdl_params([clnt_models[clnt]], n_par)[0]
->>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
 
             avg_mdl_param = np.mean(clnt_params_list[selected_clnts], axis = 0)
             avg_model = set_client_from_params(args, model_func(), avg_mdl_param) 
@@ -205,14 +180,8 @@ def train(args, data_obj, model_func, init_model):
             print("Round {:<4}. Elapsed time: {:.0f}".format(i+1, time.time()-starttime))
             print("\t \t Train: {:.2f} \t Test: {:.2f}.".format(a4*100, a3*100))
             print("\t \t Train: {:.2f} \t Test: {:.2f}.".format(a2*100, a1*100))
-
-    
-    # memory = pd.DataFrame(columns=['task', 'mode', "balance", "distribution", "n_clients", "act_prob", "seed", 
-                                     # "GUP1", "GUP2",
-    #                                "n_epochs", "epoch","time", "a1", "a2", "a3", "a4", "l1", "l2", "l3", "l4"])
-
-            df_append(memory, [args.task, args.mode, args.balance, args.dist, args.n_clients, args.act_prob, args.seed, 
-                               args.GUP1, args.GUP2, args.epoch, int(time.time()-starttime), i, a1, a2, a3, a4, int(l1), int(l2), int(l3), int(l4)])
+            df_append(memory, [args.task, args.mode, args.balance, args.dist, args.n_clients, 
+                               args.act_prob, args.epoch, args.seed, i, a1, a2, a3, a4, l1, l2, l3, l4])
             memory.to_csv(args.savename)
             starttime = time.time()
 
