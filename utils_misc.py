@@ -57,8 +57,4 @@ def get_mdl_params(model_list, n_par=None):
             temp = param.data.cpu().numpy().reshape(-1)
             param_mat[i, idx:idx + len(temp)] = temp
             idx += len(temp)
-<<<<<<< HEAD
     return np.copy(param_mat)
-=======
-    return np.copy(param_mat)
->>>>>>> c997a3d207ad4b9ac3f6a4e4d69c977badba0d0e
