@@ -86,5 +86,3 @@ For `CIFAR100`, run the following scripts:
 **FedBug (80%)**:
 
      python wk_run.py --mode 'fedavg' --task 'CIFAR100' --gu_ratio .8 --gu_unit "L"
-     
-## Experimental Results
