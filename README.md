@@ -7,7 +7,7 @@ FedBug adaptively leverages the client model parameters, distributed by the serv
 
 ## What does FedBug work?
 
-![alt text](/assets/alg_model.png)
+<img src="/assets/alg_model.png" alt="test image size" height="100%" width="100%">
 
 FedBug works on the client side. It begins by freezing the entire model, then gradually unfreezes the layers, from the input layer to the output layer.
 This bottom-up approach allows models to train the newly thawed layers to project data into a latent space, wherein the separating hyperplanes remain consistent across all clients. 
@@ -30,6 +30,29 @@ Similarly, as we progress to the subsequent third period, this process continues
 ## How does FedBug really work?
 
 It is embarassingly simple. In terms of Pytorch Implementation, FedBug only changes the `requires_grad` attribute of a Tensor. 
+
+## Experimental Results
+
+For `CIFAR100` on standard CNN model with `0.01` client participation rate, 5 local epochs. 
+- Left: Homogeneous Label Distribution.
+- Right: Hetegogeneous Label Distribution ($\alpha=0.3$).
+<img src="/assets/exp_C100_P001.png" alt="test image size" height="70%" width="70%">
+
+
+For `CIFAR100` on standard CNN model with `0.1` client participation rate, 5 local epochs.
+- Left: Homogeneous Label Distribution.
+- Right: Hetegogeneous Label Distribution ($\alpha=0.3$).
+<img src="/assets/exp_C100_P01.png" alt="test image size" height="70%" width="70%">
+
+For `TinyImageNet` on standard CNN model with `0.1` client participation rate, 3 local epochs. 
+- Left: Homogeneous Label Distribution.
+- Right: Hetegogeneous Label Distribution ($\alpha=0.5$).
+<img src="/assets/exp_TIN_P01.png" alt="test image size" height="70%" width="70%">
+
+For `TinyImageNet` on standard CNN model with `0.3` client participation rate, 3 local epochs.
+- Left: Homogeneous Label Distribution.
+- Right: Hetegogeneous Label Distribution ($\alpha=0.5$).
+<img src="/assets/exp_TIN_P03.png" alt="test image size" height="70%" width="70%">
 
 # Experimental Setup
 In this code, we assess the effectiveness of the FedBug algorithms withing three datasets (`CIFAR-10`, `CIFAR-100`, `Tiny-ImageNet`), five FL algorithms (`FedAvg`, `FedProx`, `FedDyn`, `FedExp`, `FedDecorr`), and various training conditions.
@@ -64,3 +87,4 @@ For `CIFAR100`, run the following scripts:
 
      python wk_run.py --mode 'fedavg' --task 'CIFAR100' --gu_ratio .8 --gu_unit "L"
      
+## Experimental Results
