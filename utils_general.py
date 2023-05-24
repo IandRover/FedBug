@@ -13,6 +13,7 @@ def train_model(args, model, trn_x, trn_y):
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
     model.train(); model = model.to(args.device)
     args.local_iter_count = 0
+    args.totel_iters = int(np.ceil(n_trn/args.bs)) * args.epoch
 
     for e in range(args.epoch):
         trn_gen_iter = trn_gen.__iter__()
@@ -60,6 +61,7 @@ def train_feddecorr_model(args, model, trn_x, trn_y):
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
     model.train(); model = model.to(args.device)
     args.local_iter_count = 0
+    args.totel_iters = int(np.ceil(n_trn/args.bs)) * args.epoch
 
     for e in range(args.epoch):
         trn_gen_iter = trn_gen.__iter__()
@@ -91,6 +93,9 @@ def train_feddyn_mdl(args, model, model_func, alpha_coef, avg_mdl_param, local_g
     model.train(); model = model.to(args.device)
     
     args.local_iter_count = 0
+    args.totel_iters = int(np.ceil(n_trn/args.bs)) * args.epoch
+
+
     for e in range(args.epoch):
         # Training
         epoch_loss = 0
@@ -137,6 +142,7 @@ def train_fedprox_mdl(args, model, avg_model_param_, mu, trn_x, trn_y):
     model.train(); model = model.to(args.device)
     
     args.local_iter_count = 0
+    args.totel_iters = int(np.ceil(n_trn/args.bs)) * args.epoch
     
     for e in range(args.epoch):
         # Training
@@ -191,6 +197,7 @@ def train_scaffold_mdl(args, model, model_func, state_params_diff, trn_x, trn_y,
     count_step = 0
     is_done = False
     args.local_iter_count = 0
+    args.totel_iters = int(np.ceil(n_trn/args.bs)) * args.epoch
     
     step_loss = 0; n_data_step = 0
     for e in range(args.epoch):
