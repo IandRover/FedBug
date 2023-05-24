@@ -46,15 +46,21 @@ http://cs231n.stanford.edu/tiny-imagenet-200.zip
 
 ## Run Experiment
 
+For `CIFAR100`, run the following scripts:
+
 **Baseline**:
     
-     python wk_run.py --mode 'fedavg' --task 'TinyImageNet'
+     python wk_run.py --mode 'fedavg' --task 'CIFAR100'
 
 **FedBug (10%)**:
 
-     python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --GU 100.001
+     python wk_run.py --mode 'fedavg' --task 'CIFAR100' --gu_ratio .1 --gu_unit "L"
      
 **FedBug (50%)**:
 
-     python wk_run.py --mode 'fedavg' --task 'TinyImageNet' --GU 100.005
+     python wk_run.py --mode 'fedavg' --task 'CIFAR100' --gu_ratio .5 --gu_unit "L"
+
+**FedBug (80%)**:
+
+     python wk_run.py --mode 'fedavg' --task 'CIFAR100' --gu_ratio .8 --gu_unit "L"
      
