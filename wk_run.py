@@ -15,11 +15,12 @@ parser.add_argument('--balance', type = float, default = 0., help="0: balanced |
 parser.add_argument('--dist', type = float, default = 0.0, help="0: iid | 0-1: non-iid with unbalanced_sgm")
 
 parser.add_argument('--n_clients', type = int, default = 100)
-parser.add_argument('--act_prob', type = float, default = .1)
+parser.add_argument('--act_prob', type = float, default = .01)
 
 parser.add_argument('--lr', type = float, default = 0.1)
 parser.add_argument('--momentum', type = float, default = 0)
-parser.add_argument('--GU', type = float, default = 0.)
+parser.add_argument('--gu_ratio', type = float, default = 0.)
+parser.add_argument('--gu_unit', type = str, default = "L")
 
 parser.add_argument('--device_idx', type = int, default = 0)
 parser.add_argument('--seed', type = int, default = 1)
@@ -33,8 +34,14 @@ else: args.device = torch.device("cuda:{}".format(args.device_idx) if torch.cuda
 print("Using GPU of Device ", args.device, " of ", torch.cuda.device_count())
 # ==============================================
 if args.task == "TinyImageNet":
+    args.epoch = 3
     if args.n_clients == 10: args.com_amount = 100
 if args.task == "CIFAR100":
+    args.epoch = 5
+    if args.n_clients == 10: args.com_amount = 100
+    if args.n_clients == 100: args.com_amount = 300
+if args.task == "CIFAR10":
+    args.epoch = 10
     if args.n_clients == 10: args.com_amount = 100
     if args.n_clients == 100: args.com_amount = 500
 # ==============================================
@@ -46,10 +53,10 @@ if args.dist == 0.: args.dist = 0
 args.extension += "_LR" + str(args.lr)
 if args.momentum != 0:
     args.extension += "_Mom" + str(int(args.momentum * 10))
-if args.GU == 0: args.GU = 0
-if args.GU != 0:
-    if int(args.GU) == args.GU: args.GU = int(args.GU)
-    args.extension += "_GU" + str(args.GU)
+if args.gu_ratio == 0: args.gu_ratio = 0
+if args.gu_ratio != 0:
+    if int(args.gu_ratio) == args.gu_ratio: args.gu_ratio = int(args.gu_ratio)
+    args.extension += "_gu" + str(args.gu_unit) + str(args.gu_ratio)
 # ==============================================
 dir_folder = args.task + "-" + args.model_name
 if not os.path.exists(dir_folder): os.mkdir(dir_folder)
