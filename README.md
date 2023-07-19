@@ -1,11 +1,11 @@
 # Introduction
 
-## What is **FedBug**?
+## What Is **FedBug**?
 **FedBug**, standing for ***Fed***erated Learning with ***B***ottom-***U***p ***G***radual Unfreezing, a novel FL framework designed to effectively mitigate client drift.
 
 FedBug adaptively leverages the client model parameters, distributed by the server at each global round, as the reference points for cross-client alignment. 
 
-## What does FedBug work?
+## How Does FedBug Work?
 
 <img src="/assets/alg_model.png" alt="test image size" height="100%" width="100%">
 
@@ -14,7 +14,7 @@ This bottom-up approach allows models to train the newly thawed layers to projec
 
 Take `FedBug (40\%)` for example, the first 40\% of training iterations perform gradual unfreezing (GU), while the remaining 60\% perform vanilla training. With the same number of training iterations, FedBug has fewer parameters to update and thus exhibits improved learning efficiency.
 
-## What is the intuition behind FedBug?
+## What Is the Intuition Behind FedBug?
 
 Presumming some basic knowledge about fedeerated learnig and deep learning,  recall that 
 1. At the start of each global round, all clients receive an identical model from the server;
@@ -27,7 +27,7 @@ Below, we provide an example considering a `four-layer` model trained using `Fed
 Suppose we are in the `second GU period`, where all clients have just `unfrozen their second module`. During this period, the clients adapt their first and second modules and project the data into a feature space. Notably, the separating hyperplanes within this feature space are parameterized by the yet-to-be-unfrozen modules (the third and fourth modules in this case). These modules remain consistent during this period, serving as a shared anchor among clients. 
 Similarly, as we progress to the subsequent third period, this process continues, with clients mapping their data into decision regions defined by the still-frozen fourth module. By leveraging the shared reference, FedBug ensures ongoing alignment among the clients.
 
-## How does FedBug really work?
+## How Does FedBug Really Work?
 
 It is embarassingly simple. In terms of Pytorch Implementation, FedBug only changes the `requires_grad` attribute of a Tensor. 
 
@@ -67,7 +67,7 @@ http://cs231n.stanford.edu/tiny-imagenet-200.zip
 - Unzip the downloaded file under "data" directory.
 - Lastly, to reformat the validation set, under the folder "data/tiny-imagenet-200", run `python preprocess_tiny_imagenet.py`.
 
-## Run Experiment
+## Run Experiments
 
 For `CIFAR100`, run the following scripts:
 
